@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from .models import User
 from werkzeug.security import generate_password_hash, check_password_hash # Para criptografar a senha
 from . import db
+from flask_login import login_user, login_required, logout_user, current_user
 
 auth = Blueprint('auth', __name__)
 
@@ -16,16 +17,20 @@ def login():
         if user:
             if check_password_hash(user.password, password): 
                 flash('Logged in successfully!', category='success')
+                login_user(user, remember=True) # Se o email e a senha estiverem corretos, loga o usuário
+                return redirect(url_for('views.home')) # Se o email e a senha estiverem corretos, redireciona para a página inicial
             else:
                 flash('Incorrect password, try again.', category='error')
         else:
             flash('Email does not exist.', category='error') # Se o email não existir, retorna um erro
     
-    return render_template("login.html.j2", boolean = False)
+    return render_template("login.html.j2", user=current_user)
 
 @auth.route('/logout')
+@login_required # Só pode acessar a página se estiver logado
 def logout():
-    return "<h1>Logout</h1>"
+    logout_user() # Desloga o usuário
+    return redirect(url_for('auth.login')) # Redireciona para a página de login
 
 @auth.route('/sign-up', methods=['GET', 'POST'])
 def sign_up():
@@ -52,7 +57,8 @@ def sign_up():
             new_user = User(email=email, first_name=first_name, password=generate_password_hash(password1, method='sha256'))
             db.session.add(new_user)
             db.session.commit()
+            login_user(user, remember=True) # Se o email e a senha estiverem corretos, loga o usuário
             flash('Account created!', category='success')
             return redirect(url_for('views.home'))
 
-    return render_template("sign_up.html.j2")
+    return render_template("sign_up.html.j2", user=current_user)
